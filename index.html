@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dialysis Patient Survival Analysis</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="loading-screen" id="loadingScreen">
+        <div class="logo-animation">
+            <div class="pulse-circle"></div>
+            <div class="pulse-circle"></div>
+            <div class="pulse-circle"></div>
+        </div>
+        <p class="loading-text">Loading Dashboard...</p>
+    </div>
+
+    <div class="container">
+        <header>
+            <div class="header-top">
+                <div>
+                    <div class="logo">
+                        <span class="logo-icon">🏥</span>
+                        Dialysis Patient Survival Analysis
+                    </div>
+                    <div class="header-subtitle">Clinical Risk Stratification & Dialysis Frequency Impact</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="metrics-grid" id="metricsGrid"></div>
+
+        <div class="charts-grid">
+            <div class="chart-container">
+                <h3 class="chart-title"><span class="chart-icon">📊</span>Patient Risk Stratification</h3>
+                <div class="chart-wrapper">
+                    <canvas id="riskDistributionChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h3 class="chart-title"><span class="chart-icon">🗺️</span>Risk Map: Hemodynamics vs. Compliance</h3>
+                <div class="chart-wrapper">
+                    <canvas id="riskMapChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h3 class="chart-title"><span class="chart-icon">📈</span>Dialysis Frequency Distribution</h3>
+                <div class="chart-wrapper">
+                    <canvas id="frequencyChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h3 class="chart-title"><span class="chart-icon">📉</span>Risk Score by Dialysis Frequency</h3>
+                <div class="chart-wrapper">
+                    <canvas id="riskByFrequencyChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h3 class="chart-title"><span class="chart-icon">⚙️</span>Dialysis Frequency vs. Risk Score</h3>
+                <div class="chart-wrapper">
+                    <canvas id="frequencyVsRiskChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h3 class="chart-title"><span class="chart-icon">❤️</span>Average Risk by Dialysis Frequency</h3>
+                <div class="chart-wrapper">
+                    <canvas id="avgRiskByFreqChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-section">
+            <div class="table-title">
+                <span class="table-icon">🚨</span>High-Risk Patients
+            </div>
+
+            <div class="filter-section-table">
+                <div class="filter-group">
+                    <label class="filter-label">Filter by Risk:</label>
+                    <select id="riskFilter">
+                        <option value="">All Risks</option>
+                        <option value="high">High Risk (≥30)</option>
+                        <option value="medium">Medium Risk (15-29)</option>
+                        <option value="low">Low Risk (<15)</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Filter by Frequency:</label>
+                    <select id="frequencyFilter">
+                        <option value="">All Frequencies</option>
+                        <option value="High">High (>19)</option>
+                        <option value="Medium">Medium (3-19)</option>
+                        <option value="Low">Low (<3)</option>
+                    </select>
+                </div>
+
+                <button class="btn" onclick="resetFilters()">Reset Filters</button>
+
+                <div class="search-bar" style="flex: 1; margin-left: 20px;">
+                    <input type="text" id="searchInput" placeholder="🔍 Search patient ID...">
+                </div>
+            </div>
+
+            <table id="patientsTable">
+                <thead>
+                    <tr>
+                        <th>Patient ID</th>
+                        <th>Risk Score</th>
+                        <th>Risk Level</th>
+                        <th>Avg SBP</th>
+                        <th>IDWG CV</th>
+                        <th>Sessions</th>
+                        <th>Frequency</th>
+                        <th>BP Instability</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
+                <div class="pagination" id="pagination"></div>
+                <button class="btn" id="downloadBtn">Download CSV</button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2025 Dialysis Patient Survival Analysis | Data-Driven Clinical Decision Support</p>
+        <p style="font-size: 12px; margin-top: 8px;">Data Source: <a href="https://data.mendeley.com/datasets/7kmtsmsgfw/1" target="_blank" style="color: inherit; text-decoration: underline;">Mendeley Data</a> | Citation: Gomez-Pulido, Juan A. (2021), "Dialysis database: sessions with clinical parameters", Mendeley Data, V1, doi: 10.17632/7kmtsmsgfw.1</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

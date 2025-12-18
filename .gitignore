@@ -1,0 +1,39 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Jupyter Notebooks
+*.ipynb
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+
+# Data files (source data - keep CSVs exported for dashboard)
+dataset.xlsx
+*.xlsx
+!Patient_Dashboard_Data.csv
+!High_Risk_Patients_Report.csv
+
+# Logs
+*.log
