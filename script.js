@@ -1,496 +1,123 @@
+﻿'use strict';
 const chartInstances = {};
-let allPatients = [];
+let sourceProfiles = Object.freeze([]);
+let visibleProfiles = [];
 let currentPage = 1;
 const rowsPerPage = 10;
-
+const $ = id => document.getElementById(id);
+const number = value => value == null || String(value).trim() === '' ? null : (Number.isFinite(Number(value)) ? Number(value) : null);
+const format = value => value === null ? 'Unavailable' : value.toLocaleString(undefined, {maximumFractionDigits: 2});
+function parseCSV(text) {
+    const rows = []; let row = [], cell = '', quoted = false, closed = false;
+    text = text.replace(/^\uFEFF/, '');
+    for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (quoted) {
+            if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+            else if (c === '"') { quoted = false; closed = true; }
+            else cell += c;
+        } else if (c === '"') {
+            if (cell || closed) throw new Error('Invalid CSV quoting.');
+            quoted = true;
+        } else if (c === ',' || c === '\n' || c === '\r') {
+            row.push(cell); cell = ''; closed = false;
+            if (c !== ',') { if (row.some(v => v !== '')) rows.push(row); row = []; if (c === '\r' && text[i + 1] === '\n') i++; }
+        } else { if (closed) throw new Error('Invalid text after CSV quote.'); cell += c; }
+    }
+    if (quoted) throw new Error('Unclosed CSV quote.');
+    row.push(cell); if (row.some(v => v !== '')) rows.push(row);
+    if (!rows.length) throw new Error('CSV is empty.');
+    const headers = rows.shift();
+    const required = ['Proxy_ID','SBP_mean','SBP_std','Interdialytic_Weight_Gain_mean','Interdialytic_Weight_Gain_std','Session_Count','Frequency_Category','IDWG_CV','BP_Instability_Rank','Clinical_Risk_Score'];
+    if (new Set(headers).size !== headers.length || required.some(h => !headers.includes(h))) throw new Error('CSV schema does not match the dashboard export.');
+    return rows.map(values => {
+        if (values.length !== headers.length) throw new Error('CSV row has an unexpected number of fields.');
+        return Object.fromEntries(headers.map((h, i) => [h, values[i]]));
+    });
+}
+function toProfile(row) {
+    const sessions = number(row.Session_Count), sbp = number(row.SBP_mean), std = number(row.SBP_std);
+    const mean = number(row.Interdialytic_Weight_Gain_mean), weightStd = number(row.Interdialytic_Weight_Gain_std);
+    const cv = number(row.IDWG_CV), rank = number(row.BP_Instability_Rank), rawScore = number(row.Clinical_Risk_Score);
+    if (!row.Proxy_ID || !Number.isInteger(sessions) || sessions < 1 || !['Low','Medium','High'].includes(row.Frequency_Category)) throw new Error('Invalid profile identity, session count, or exported group.');
+    const eligible = sessions >= 2 && sbp !== null && sbp > 0 && std !== null && std >= 0 && mean !== null && mean >= .5 && weightStd !== null && weightStd >= 0 && cv !== null && cv >= 0 && cv <= 2 && Number.isInteger(rank) && rank >= 1 && rank <= 4 && rawScore !== null && rawScore >= 0 && rawScore <= 65;
+    const score = eligible ? rawScore : null;
+    return Object.freeze({id:row.Proxy_ID,sessions,sbp:sbp > 0 ? sbp : null,cv:mean >= .5 && weightStd !== null && weightStd >= 0 && cv !== null && cv >= 0 && cv <= 2 ? cv * 100 : null,rank:sessions >= 2 && std !== null && std >= 0 && Number.isInteger(rank) && rank >= 1 && rank <= 4 ? rank : null,group:row.Frequency_Category,score,band:score === null ? 'unknown' : score >= 30 ? 'high' : score >= 15 ? 'medium' : 'low'});
+}
+function filterProfiles(profiles, risk, group, search) {
+    return profiles.filter(p => (!risk || p.band === risk) && (!group || p.group === group) && p.id.toLowerCase().includes(search.trim().toLowerCase())).sort((a,b) => (b.score ?? -1) - (a.score ?? -1) || a.id.localeCompare(b.id));
+}
+const bandLabel = band => ({high:'High',medium:'Medium',low:'Low',unknown:'Insufficient data'})[band];
+function element(tag, text, className) { const el = document.createElement(tag); el.textContent = text; if (className) el.className = className; return el; }
 async function loadData() {
+    $('retryBtn').hidden = true; $('loadStatus').textContent = 'Loading Patient_Dashboard_Data.csv…';
     try {
-        // Load the pre-aggregated patient dashboard data (exported from Python analysis)
         const response = await fetch('Patient_Dashboard_Data.csv');
-        const csvText = await response.text();
-        
-        // Simple CSV parser
-        const lines = csvText.trim().split('\n');
-        const headers = lines[0].split(',').map(h => h.trim());
-        const data = lines.slice(1).map(line => {
-            const values = line.split(',').map(v => v.trim());
-            const row = {};
-            headers.forEach((header, i) => {
-                row[header] = values[i];
-            });
-            return row;
-        });
-
-        console.log("CSV available: true");
-        console.log("Loaded rows:", data.length);
-
-        // Direct parsing from aggregated data (already processed by analysis_pipeline.py)
-        const patientArray = data.map((row, idx) => {
-            // First column is usually the index; actual Proxy_ID starts from column 1
-            const keys = Object.keys(row);
-            const patientId = row[keys[0]];  // Use first column (Proxy_ID index from CSV)
-            
-            if (!patientId) return null;
-
-            const avgSBP = parseFloat(row['SBP_mean']) || 0;
-            const sbpStd = parseFloat(row['SBP_std']) || 0;
-            const sbpCV = (sbpStd / avgSBP) * 100 || 0;
-
-            const idwgCV = parseFloat(row['IDWG_CV']) || 0;
-            const sessionCount = parseInt(row['Session_Count']) || 0;
-            const riskScore = parseFloat(row['Clinical_Risk_Score']) || 0;
-
-            return {
-                id: patientId,
-                sessionCount: sessionCount,
-                avgSBP: avgSBP.toFixed(2),
-                sbpCV: sbpCV.toFixed(2),
-                idwgCV: idwgCV.toFixed(2),
-                riskScore: riskScore.toFixed(2),
-                bpInstabilityRank: getBPInstabilityRank(sbpCV),
-                dialysisFrequency: getDialysisFrequency(sessionCount),
-                hypotensionRisk: (parseFloat(row['Hypotension_Flag']) * 100 || 0).toFixed(2)
-            };
-        }).filter(p => p !== null);
-
-        console.log("Patients processed:", patientArray.length);
-        allPatients = patientArray;
-        updateMetrics(patientArray);
-        updateCharts(patientArray);
-        updateTable(patientArray);
-        attachEventListeners(patientArray);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const profiles = parseCSV(await response.text()).map(toProfile);
+        sourceProfiles = Object.freeze(profiles); applyFilters();
+        $('loadStatus').textContent = profiles.length ? 'Aggregate export loaded. Generation date unavailable.' : 'The export contains no profiles.';
     } catch (error) {
-        console.error('Error loading data:', error);
-        alert('Error loading dataset. Ensure dataset.xlsx is in the same directory.');
+        sourceProfiles = Object.freeze([]); applyFilters();
+        $('loadStatus').textContent = `Could not load Patient_Dashboard_Data.csv: ${error.message} Serve this folder over HTTP and check the export.`;
+        $('retryBtn').hidden = false;
     }
 }
-
-function getBPInstabilityRank(cv) {
-    if (cv >= 20) return 'Very High';
-    if (cv >= 15) return 'High';
-    if (cv >= 10) return 'Medium';
-    return 'Low';
-}
-
-function getDialysisFrequency(sessions) {
-    if (sessions > 19) return 'High';
-    if (sessions >= 3) return 'Medium';
-    return 'Low';
-}
-
-function updateMetrics(patients) {
-    const totalPatients = patients.length;
-    const highRisk = patients.filter(p => p.riskScore >= 30).length;
-    const mediumRisk = patients.filter(p => p.riskScore >= 15 && p.riskScore < 30).length;
-    const lowRisk = patients.filter(p => p.riskScore < 15).length;
-    const totalSessions = patients.reduce((sum, p) => sum + p.sessionCount, 0);
-    const avgSBP = (patients.reduce((sum, p) => sum + parseFloat(p.avgSBP), 0) / totalPatients).toFixed(2);
-    const avgIDWGCV = (patients.reduce((sum, p) => sum + parseFloat(p.idwgCV), 0) / totalPatients).toFixed(2);
-    const avgRiskScore = (patients.reduce((sum, p) => sum + parseFloat(p.riskScore), 0) / totalPatients).toFixed(2);
-
-    const metricsData = [
-        { label: 'Total Patients', value: totalPatients, detail: 'Clinical dataset' },
-        { label: 'High Risk', value: highRisk, detail: `${((highRisk / totalPatients) * 100).toFixed(1)}% of total` },
-        { label: 'Medium Risk', value: mediumRisk, detail: `${((mediumRisk / totalPatients) * 100).toFixed(1)}% of total` },
-        { label: 'Low Risk', value: lowRisk, detail: `${((lowRisk / totalPatients) * 100).toFixed(1)}% of total` },
-        { label: 'Total Sessions', value: totalSessions, detail: 'All dialysis sessions' },
-        { label: 'Avg Risk Score', value: avgRiskScore, detail: 'Mean across all patients' },
-        { label: 'Avg Systolic BP', value: avgSBP, detail: 'mmHg' },
-        { label: 'Avg Weight CV', value: avgIDWGCV, detail: '%' }
-    ];
-
-    const grid = document.getElementById('metricsGrid');
-    grid.innerHTML = metricsData.map(m => `
-        <div class="metric-card">
-            <div class="metric-label">${m.label}</div>
-            <div class="metric-value">${m.value}</div>
-            <div class="metric-detail">${m.detail}</div>
-        </div>
-    `).join('');
-}
-
-function updateCharts(patients) {
-    // Chart 1: Patient Risk Stratification (Grouped Histogram)
-    const riskBins = { '5-10': 0, '10-15': 0, '15-20': 0, '20-25': 0, '25-30': 0, '30-35': 0, '35-40': 0, '40+': 0 };
-    patients.forEach(p => {
-        const risk = parseFloat(p.riskScore);
-        if (risk < 10) riskBins['5-10']++;
-        else if (risk < 15) riskBins['10-15']++;
-        else if (risk < 20) riskBins['15-20']++;
-        else if (risk < 25) riskBins['20-25']++;
-        else if (risk < 30) riskBins['25-30']++;
-        else if (risk < 35) riskBins['30-35']++;
-        else if (risk < 40) riskBins['35-40']++;
-        else riskBins['40+']++;
-    });
-
-    const riskLabels = Object.keys(riskBins);
-    const riskData = Object.values(riskBins);
-
-    createChart('riskDistributionChart', 'bar', {
-        labels: riskLabels,
-        datasets: [{
-            label: 'Number of Patients',
-            data: riskData,
-            backgroundColor: riskLabels.map(r => {
-                const risk = parseFloat(r);
-                if (risk >= 30) return '#dc2626';
-                if (risk >= 15) return '#f97316';
-                return '#22c55e';
-            }),
-            borderColor: '#000',
-            borderWidth: 1
-        }]
-    }, { axisLabels: { xLabel: 'Clinical Risk Score', yLabel: 'Number of Patients' } });
-
-    // Chart 2: Risk Map (Scatter: SBP vs IDWG_CV)
-    const riskMapData = patients.map(p => ({
-        x: parseFloat(p.avgSBP),
-        y: parseFloat(p.idwgCV),
-        r: (parseFloat(p.riskScore) / 5),
-        risk: parseFloat(p.riskScore)
-    }));
-
-    createChart('riskMapChart', 'bubble', {
-        datasets: [{
-            label: 'Low Risk (<15)',
-            data: riskMapData.filter(d => d.risk < 15),
-            backgroundColor: 'rgba(34, 197, 94, 0.6)',
-            borderColor: '#22c55e',
-            borderWidth: 1
-        },
-        {
-            label: 'Medium Risk (15-30)',
-            data: riskMapData.filter(d => d.risk >= 15 && d.risk < 30),
-            backgroundColor: 'rgba(249, 115, 22, 0.6)',
-            borderColor: '#f97316',
-            borderWidth: 1
-        },
-        {
-            label: 'High Risk (≥30)',
-            data: riskMapData.filter(d => d.risk >= 30),
-            backgroundColor: 'rgba(220, 38, 38, 0.6)',
-            borderColor: '#dc2626',
-            borderWidth: 1
-        }]
-    }, { axisLabels: { xLabel: 'Average Systolic BP (mmHg)', yLabel: 'Weight Gain Volatility (CV %)' } });
-
-    // Chart 3: Dialysis Frequency Distribution (Bar)
-    const frequencyCounts = { Low: 0, Medium: 0, High: 0 };
-    patients.forEach(p => frequencyCounts[p.dialysisFrequency]++);
-
-    const frequencyColors = { Low: '#06b6d4', Medium: '#f97316', High: '#3b82f6' };
-
-    createChart('frequencyChart', 'bar', {
-        labels: Object.keys(frequencyCounts),
-        datasets: [{
-            label: 'Number of Patients',
-            data: Object.values(frequencyCounts),
-            backgroundColor: Object.keys(frequencyCounts).map(k => frequencyColors[k]),
-            borderColor: '#000',
-            borderWidth: 1
-        }]
-    }, { axisLabels: { xLabel: 'Dialysis Frequency', yLabel: 'Number of Patients' } });
-
-    // Chart 4: Risk Score Distribution by Dialysis Frequency (Bar Chart)
-    const riskByFreqHigh = patients.filter(p => p.dialysisFrequency === 'High').map(p => parseFloat(p.riskScore));
-    const riskByFreqMed = patients.filter(p => p.dialysisFrequency === 'Medium').map(p => parseFloat(p.riskScore));
-    const riskByFreqLow = patients.filter(p => p.dialysisFrequency === 'Low').map(p => parseFloat(p.riskScore));
-
-    const avgRiskHigh = (riskByFreqHigh.reduce((a, b) => a + b, 0) / riskByFreqHigh.length).toFixed(2);
-    const avgRiskMed = (riskByFreqMed.reduce((a, b) => a + b, 0) / riskByFreqMed.length).toFixed(2);
-    const avgRiskLow = (riskByFreqLow.reduce((a, b) => a + b, 0) / riskByFreqLow.length).toFixed(2);
-
-    createChart('riskByFrequencyChart', 'bar', {
-        labels: ['Low', 'Medium', 'High'],
-        datasets: [{
-            label: 'Average Risk Score',
-            data: [avgRiskLow, avgRiskMed, avgRiskHigh],
-            backgroundColor: ['rgba(6, 182, 212, 0.7)', 'rgba(249, 115, 22, 0.7)', 'rgba(59, 130, 246, 0.7)'],
-            borderColor: ['#06b6d4', '#f97316', '#3b82f6'],
-            borderWidth: 2
-        }]
-    }, { axisLabels: { xLabel: 'Dialysis Frequency', yLabel: 'Average Risk Score' } });
-
-    // Chart 5: Dialysis Frequency vs Risk Score (Scatter with categories)
-    const frequencyVsRiskData = patients.map((p, idx) => ({
-        x: idx % 20, // Group for better visualization
-        y: parseFloat(p.riskScore),
-        freq: p.dialysisFrequency,
-        sessions: p.sessionCount
-    }));
-
-    const freqGroups = { Low: [], Medium: [], High: [] };
-
-    patients.forEach(p => {
-        freqGroups[p.dialysisFrequency].push(parseFloat(p.riskScore));
-    });
-
-    createChart('frequencyVsRiskChart', 'scatter', {
-        datasets: [
-            {
-                label: 'Low Frequency',
-                data: freqGroups.Low.map((risk, idx) => ({ x: idx, y: risk })),
-                backgroundColor: 'rgba(6, 182, 212, 0.6)',
-                borderColor: '#06b6d4',
-                borderWidth: 1
-            },
-            {
-                label: 'Medium Frequency',
-                data: freqGroups.Medium.map((risk, idx) => ({ x: idx, y: risk })),
-                backgroundColor: 'rgba(249, 115, 22, 0.6)',
-                borderColor: '#f97316',
-                borderWidth: 1
-            },
-            {
-                label: 'High Frequency',
-                data: freqGroups.High.map((risk, idx) => ({ x: idx, y: risk })),
-                backgroundColor: 'rgba(59, 130, 246, 0.6)',
-                borderColor: '#3b82f6',
-                borderWidth: 1
-            }
-        ]
-    }, { axisLabels: { xLabel: 'Patient Index (within frequency group)', yLabel: 'Risk Score' } });
-
-    // Chart 6: Average Risk Score by Dialysis Frequency (Bar with labels)
-    const freqCategories = ['Low', 'Medium', 'High'];
-    const avgRiskByFreq = freqCategories.map(freq => {
-        const filtered = patients.filter(p => p.dialysisFrequency === freq);
-        return filtered.length > 0 ? (filtered.reduce((sum, p) => sum + parseFloat(p.riskScore), 0) / filtered.length).toFixed(2) : 0;
-    });
-
-    createChart('avgRiskByFreqChart', 'bar', {
-        labels: freqCategories,
-        datasets: [{
-            label: 'Average Risk Score',
-            data: avgRiskByFreq,
-            backgroundColor: ['#06b6d4', '#f97316', '#3b82f6'],
-            borderColor: '#000',
-            borderWidth: 1,
-            datalabels: avgRiskByFreq
-        }]
-    }, { axisLabels: { xLabel: 'Dialysis Frequency', yLabel: 'Average Risk Score' } });
-}
-
-function createChart(elementId, type, data, options = {}) {
-    if (chartInstances[elementId]) {
-        chartInstances[elementId].destroy();
-    }
-
-    const ctx = document.getElementById(elementId).getContext('2d');
-    
-    const chartOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
-        plugins: {
-            legend: {
-                display: true,
-                labels: {
-                    font: { family: "'Inter', sans-serif", size: 13, weight: 500 },
-                    color: '#000',
-                    usePointStyle: true,
-                    padding: 15
-                }
-            }
-        }
-    };
-
-    // Add scales for non-doughnut charts
-    if (type !== 'doughnut') {
-        const axisConfig = options.axisLabels || {};
-        chartOptions.scales = {
-            x: { 
-                ticks: { font: { family: "'Inter', sans-serif", size: 12 }, color: '#666' }, 
-                grid: { color: '#e5e7eb' },
-                title: {
-                    display: !!axisConfig.xLabel,
-                    text: axisConfig.xLabel || '',
-                    font: { family: "'Inter', sans-serif", size: 13 },
-                    color: '#000',
-                    padding: 10
-                }
-            },
-            y: { 
-                ticks: { font: { family: "'Inter', sans-serif", size: 12 }, color: '#666' }, 
-                grid: { color: '#e5e7eb' },
-                title: {
-                    display: !!axisConfig.yLabel,
-                    text: axisConfig.yLabel || '',
-                    font: { family: "'Inter', sans-serif", size: 13 },
-                    color: '#000',
-                    padding: 10
-                }
-            }
-        };
-    }
-
-    chartInstances[elementId] = new Chart(ctx, {
-        type: type,
-        data: data,
-        options: chartOptions
-    });
-}
-
-function updateTable(patients) {
-    allPatients = patients.sort((a, b) => parseFloat(b.riskScore) - parseFloat(a.riskScore));
-    currentPage = 1;
-    displayPage();
-}
-
-function displayPage() {
-    const start = (currentPage - 1) * rowsPerPage;
-    const end = start + rowsPerPage;
-    const pageData = allPatients.slice(start, end);
-
-    const tbody = document.getElementById('tableBody');
-    tbody.innerHTML = pageData.map(p => `
-        <tr>
-            <td>${p.id}</td>
-            <td>${p.riskScore}</td>
-            <td><span class="risk-badge risk-${(p.riskScore >= 30 ? 'high' : p.riskScore >= 15 ? 'medium' : 'low')}">${p.riskScore >= 30 ? 'High' : p.riskScore >= 15 ? 'Medium' : 'Low'}</span></td>
-            <td>${p.avgSBP}</td>
-            <td>${p.idwgCV}</td>
-            <td>${p.sessionCount}</td>
-            <td><span class="freq-badge freq-${p.dialysisFrequency.toLowerCase()}">${p.dialysisFrequency}</span></td>
-            <td>${p.bpInstabilityRank}</td>
-        </tr>
-    `).join('');
-
-    updatePagination();
-}
-
-function updatePagination() {
-    const totalPages = Math.ceil(allPatients.length / rowsPerPage);
-    const paginationDiv = document.getElementById('pagination');
-    paginationDiv.innerHTML = '';
-    paginationDiv.style.display = 'flex';
-    paginationDiv.style.gap = '10px';
-    paginationDiv.style.justifyContent = 'center';
-
-    // Prev button
-    const prevBtn = document.createElement('button');
-    prevBtn.textContent = 'Prev';
-    prevBtn.disabled = currentPage === 1;
-    prevBtn.style.padding = '8px 16px';
-    prevBtn.style.border = '1px solid #d1d5db';
-    prevBtn.style.borderRadius = '6px';
-    prevBtn.style.cursor = currentPage === 1 ? 'not-allowed' : 'pointer';
-    prevBtn.style.fontSize = '13px';
-    prevBtn.style.background = currentPage === 1 ? '#f3f4f6' : 'white';
-    prevBtn.style.color = currentPage === 1 ? '#ccc' : '#000';
-    prevBtn.style.transition = 'all 0.2s ease';
-    prevBtn.onclick = () => {
-        if (currentPage > 1) {
-            currentPage--;
-            displayPage();
-            window.scrollTo({ top: document.querySelector('.table-section').offsetTop - 100, behavior: 'smooth' });
-        }
-    };
-    paginationDiv.appendChild(prevBtn);
-
-    // Next button
-    const nextBtn = document.createElement('button');
-    nextBtn.textContent = 'Next';
-    nextBtn.disabled = currentPage === totalPages;
-    nextBtn.style.padding = '8px 16px';
-    nextBtn.style.border = '1px solid #d1d5db';
-    nextBtn.style.borderRadius = '6px';
-    nextBtn.style.cursor = currentPage === totalPages ? 'not-allowed' : 'pointer';
-    nextBtn.style.fontSize = '13px';
-    nextBtn.style.background = currentPage === totalPages ? '#f3f4f6' : 'white';
-    nextBtn.style.color = currentPage === totalPages ? '#ccc' : '#000';
-    nextBtn.style.transition = 'all 0.2s ease';
-    nextBtn.onclick = () => {
-        if (currentPage < totalPages) {
-            currentPage++;
-            displayPage();
-            window.scrollTo({ top: document.querySelector('.table-section').offsetTop - 100, behavior: 'smooth' });
-        }
-    };
-    paginationDiv.appendChild(nextBtn);
-}
-
 function applyFilters() {
-    const riskFilter = document.getElementById('riskFilter').value;
-    const frequencyFilter = document.getElementById('frequencyFilter').value;
-
-    let filtered = allPatients.slice();
-
-    if (riskFilter === 'high') filtered = filtered.filter(p => p.riskScore >= 30);
-    if (riskFilter === 'medium') filtered = filtered.filter(p => p.riskScore >= 15 && p.riskScore < 30);
-    if (riskFilter === 'low') filtered = filtered.filter(p => p.riskScore < 15);
-
-    if (frequencyFilter) filtered = filtered.filter(p => p.dialysisFrequency === frequencyFilter);
-
-    allPatients = filtered;
-    currentPage = 1;
-    displayPage();
+    visibleProfiles = filterProfiles(sourceProfiles, $('riskFilter').value, $('frequencyFilter').value, $('searchInput').value);
+    currentPage = 1; renderSummary(); displayPage(); updateCharts();
+    $('downloadBtn').disabled = !visibleProfiles.length;
 }
-
-function resetFilters() {
-    document.getElementById('riskFilter').value = '';
-    document.getElementById('frequencyFilter').value = '';
+function renderSummary() {
+    const eligible = visibleProfiles.filter(p => p.score !== null).length;
+    const metrics = [['Proxy profiles',visibleProfiles.length,`of ${sourceProfiles.length} loaded profiles`],['Recorded sessions',visibleProfiles.reduce((n,p)=>n+p.sessions,0),'Observation count; no time denominator'],['Score eligible',eligible,'Aggregate evidence screen only'],['Insufficient data',visibleProfiles.length-eligible,'Numerical score withheld']];
+    $('metricsGrid').replaceChildren(...metrics.map(([label,value,detail])=>{ const el=element('div','','metric'); el.append(element('div',label,'metric-label'),element('div',format(value),'metric-value'),element('div',detail,'metric-detail')); return el; }));
+    $('matchCount').textContent = `${visibleProfiles.length} matching profiles · ${sourceProfiles.length} loaded · sorted by score, highest first`;
+}
+function displayPage() {
+    const start = (currentPage-1)*rowsPerPage;
+    const rows = visibleProfiles.slice(start,start+rowsPerPage).map(p=>{ const row=element('tr',''); [p.id,format(p.score),bandLabel(p.band),format(p.sbp),format(p.cv),format(p.sessions),p.group,format(p.rank)].forEach((value,i)=>{ const cell=element('td',i===2 ? '' : value); if(i===2) cell.append(element('span',value,`badge ${p.band}`)); row.append(cell); }); return row; });
+    if (!rows.length) { const row=element('tr',''); const cell=element('td','No matching profiles. Clear the filters or check the data loading status.'); cell.colSpan=8; row.append(cell); rows.push(row); }
+    $('tableBody').replaceChildren(...rows);
+    const pages = Math.max(1,Math.ceil(visibleProfiles.length/rowsPerPage));
+    $('pageInfo').textContent = visibleProfiles.length ? `${start+1}–${Math.min(start+rowsPerPage,visibleProfiles.length)} of ${visibleProfiles.length} · Page ${currentPage} of ${pages}` : '0 profiles';
+    $('prevBtn').disabled = currentPage<=1; $('nextBtn').disabled = currentPage>=pages;
+}
+function scatterData(profiles) { return ['Low','Medium','High'].map((group,i)=>({label:`${group} session group`,data:profiles.filter(p=>p.group===group && p.score!==null).map(p=>({x:p.sessions,y:p.score})),backgroundColor:['#176b73','#b58128','#6278a0'][i],pointStyle:['circle','triangle','rect'][i],pointRadius:3})); }
+function updateCharts() {
+    const counts = ['low','medium','high','unknown'].map(b=>visibleProfiles.filter(p=>p.band===b).length);
+    $('distributionSummary').textContent = `Low (<15): ${counts[0]} · Medium (15–<30): ${counts[1]} · High (≥30): ${counts[2]} · Insufficient data: ${counts[3]}.`;
+    $('scatterSummary').textContent = `${visibleProfiles.filter(p=>p.score!==null).length} eligible profiles plotted; overlapping observations may share coordinates. Association does not establish causation.`;
+    try {
+        if (typeof Chart === 'undefined') throw new Error('Chart.js unavailable');
+        makeChart('sessionsChart','scatter',{datasets:scatterData(visibleProfiles)},'Observed session count','Exploratory score');
+        makeChart('distributionChart','bar',{labels:['Low','Medium','High','Insufficient'],datasets:[{label:'Profiles',data:counts,backgroundColor:['#176b73','#b58128','#a54b4b','#87949e']}]},'Score band / evidence','Proxy profiles');
+        $('chartStatus').textContent = '';
+    } catch (_) { $('chartStatus').textContent = 'Charts are unavailable. Text summaries, filters, the table, and CSV export remain available. Reload to retry the chart dependency.'; }
+}
+function makeChart(id,type,data,x,y) {
+    if(chartInstances[id]) { chartInstances[id].data=data; chartInstances[id].update('none'); return; }
+    chartInstances[id]=new Chart($(id),{type,data,options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:type==='scatter',position:'bottom',labels:{usePointStyle:true,color:'#52616b'}}},scales:{x:{...(type==='scatter'?{type:'linear'}:{}),title:{display:true,text:x},grid:{display:false}},y:{beginAtZero:true,title:{display:true,text:y},grid:{color:'#edf0f2'}}}}});
+}
+function csvCell(value) {
+    if (value === null) return '""';
+    let text = String(value);
+    // Prefix formula-like text for spreadsheet safety; numeric values remain numeric.
+    if (typeof value === 'string' && /^[\s]*[=+\-@\t\r]/.test(text)) text = "'"+text;
+    return '"'+text.replace(/"/g,'""')+'"';
+}
+function exportCSV(profiles) {
+    return [['Proxy profile ID','Exploratory score','Score band','Mean SBP (mmHg)','IDWG CV (%)','Observed sessions','Session group','BP variability rank'],...profiles.map(p=>[p.id,p.score,bandLabel(p.band),p.sbp,p.cv,p.sessions,p.group,p.rank])].map(row=>row.map(csvCell).join(',')).join('\r\n');
+}
+function initialize() {
+    ['riskFilter','frequencyFilter'].forEach(id=>$(id).addEventListener('change',applyFilters));
+    $('searchInput').addEventListener('input',applyFilters);
+    $('resetBtn').addEventListener('click',()=>{ ['riskFilter','frequencyFilter','searchInput'].forEach(id=>$(id).value=''); applyFilters(); });
+    $('retryBtn').addEventListener('click',loadData);
+    $('prevBtn').addEventListener('click',()=>{if(currentPage>1){currentPage--;displayPage();}});
+    $('nextBtn').addEventListener('click',()=>{if(currentPage*rowsPerPage<visibleProfiles.length){currentPage++;displayPage();}});
+    $('downloadBtn').addEventListener('click',()=>{const url=URL.createObjectURL(new Blob([exportCSV(visibleProfiles)],{type:'text/csv;charset=utf-8'})); const a=element('a',''); a.href=url;a.download='filtered_proxy_profiles.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);});
     loadData();
 }
-
-function downloadTableAsCSV() {
-    const headers = ['Patient ID', 'Risk Score', 'Risk Level', 'Avg SBP', 'IDWG CV', 'Session Count', 'Frequency', 'BP Instability'];
-    const rows = [];
-    
-    allPatients.forEach(p => {
-        rows.push([
-            p.id,
-            p.riskScore,
-            (p.riskScore >= 30 ? 'High' : p.riskScore >= 15 ? 'Medium' : 'Low'),
-            p.avgSBP,
-            p.idwgCV,
-            p.sessionCount,
-            p.dialysisFrequency,
-            p.bpInstabilityRank
-        ]);
-    });
-
-    let csvContent = headers.join(',') + '\n';
-    rows.forEach(row => {
-        csvContent += row.map(cell => `"${cell}"`).join(',') + '\n';
-    });
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'high_risk_patients.csv';
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-}
-
-function attachEventListeners(patients) {
-    document.getElementById('riskFilter').addEventListener('change', applyFilters);
-    document.getElementById('frequencyFilter').addEventListener('change', applyFilters);
-    
-    const downloadBtn = document.getElementById('downloadBtn');
-    if (downloadBtn) {
-        downloadBtn.addEventListener('click', downloadTableAsCSV);
-    }
-
-    document.getElementById('searchInput').addEventListener('input', (e) => {
-        const searchValue = e.target.value.toLowerCase().trim();
-        if (searchValue === '') {
-            allPatients = patients.sort((a, b) => parseFloat(b.riskScore) - parseFloat(a.riskScore));
-        } else {
-            allPatients = patients.filter(p => p.id.toLowerCase().includes(searchValue)).sort((a, b) => parseFloat(b.riskScore) - parseFloat(a.riskScore));
-        }
-        currentPage = 1;
-        displayPage();
-    });
-}
-
-window.addEventListener('load', () => {
-    setTimeout(() => {
-        document.getElementById('loadingScreen').classList.add('hidden');
-        loadData();
-    }, 800);
-});
+if(typeof document!=='undefined') { if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initialize,{once:true}); else initialize(); }
+if(typeof module!=='undefined') module.exports={parseCSV,toProfile,filterProfiles,scatterData,exportCSV,csvCell};
