@@ -1,142 +1,22 @@
-<!DOCTYPE html>
+﻿<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dialysis Patient Survival Analysis</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dialysis | Research workspace</title>
+<link rel="stylesheet" href="styles.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script defer src="script.js"></script>
 </head>
 <body>
-    <div class="loading-screen" id="loadingScreen">
-        <div class="logo-animation">
-            <div class="pulse-circle"></div>
-            <div class="pulse-circle"></div>
-            <div class="pulse-circle"></div>
-        </div>
-        <p class="loading-text">Loading Dashboard...</p>
-    </div>
-
-    <div class="container">
-        <header>
-            <div class="header-top">
-                <div>
-                    <div class="logo">
-                        <span class="logo-icon">🏥</span>
-                        Dialysis Patient Survival Analysis
-                    </div>
-                    <div class="header-subtitle">Clinical Risk Stratification & Dialysis Frequency Impact</div>
-                </div>
-            </div>
-        </header>
-
-        <div class="metrics-grid" id="metricsGrid"></div>
-
-        <div class="charts-grid">
-            <div class="chart-container">
-                <h3 class="chart-title"><span class="chart-icon">📊</span>Patient Risk Stratification</h3>
-                <div class="chart-wrapper">
-                    <canvas id="riskDistributionChart"></canvas>
-                </div>
-            </div>
-
-            <div class="chart-container">
-                <h3 class="chart-title"><span class="chart-icon">🗺️</span>Risk Map: Hemodynamics vs. Compliance</h3>
-                <div class="chart-wrapper">
-                    <canvas id="riskMapChart"></canvas>
-                </div>
-            </div>
-
-            <div class="chart-container">
-                <h3 class="chart-title"><span class="chart-icon">📈</span>Dialysis Frequency Distribution</h3>
-                <div class="chart-wrapper">
-                    <canvas id="frequencyChart"></canvas>
-                </div>
-            </div>
-
-            <div class="chart-container">
-                <h3 class="chart-title"><span class="chart-icon">📉</span>Risk Score by Dialysis Frequency</h3>
-                <div class="chart-wrapper">
-                    <canvas id="riskByFrequencyChart"></canvas>
-                </div>
-            </div>
-
-            <div class="chart-container">
-                <h3 class="chart-title"><span class="chart-icon">⚙️</span>Dialysis Frequency vs. Risk Score</h3>
-                <div class="chart-wrapper">
-                    <canvas id="frequencyVsRiskChart"></canvas>
-                </div>
-            </div>
-
-            <div class="chart-container">
-                <h3 class="chart-title"><span class="chart-icon">❤️</span>Average Risk by Dialysis Frequency</h3>
-                <div class="chart-wrapper">
-                    <canvas id="avgRiskByFreqChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <div class="table-section">
-            <div class="table-title">
-                <span class="table-icon">🚨</span>High-Risk Patients
-            </div>
-
-            <div class="filter-section-table">
-                <div class="filter-group">
-                    <label class="filter-label">Filter by Risk:</label>
-                    <select id="riskFilter">
-                        <option value="">All Risks</option>
-                        <option value="high">High Risk (≥30)</option>
-                        <option value="medium">Medium Risk (15-29)</option>
-                        <option value="low">Low Risk (<15)</option>
-                    </select>
-                </div>
-
-                <div class="filter-group">
-                    <label class="filter-label">Filter by Frequency:</label>
-                    <select id="frequencyFilter">
-                        <option value="">All Frequencies</option>
-                        <option value="High">High (>19)</option>
-                        <option value="Medium">Medium (3-19)</option>
-                        <option value="Low">Low (<3)</option>
-                    </select>
-                </div>
-
-                <button class="btn" onclick="resetFilters()">Reset Filters</button>
-
-                <div class="search-bar" style="flex: 1; margin-left: 20px;">
-                    <input type="text" id="searchInput" placeholder="🔍 Search patient ID...">
-                </div>
-            </div>
-
-            <table id="patientsTable">
-                <thead>
-                    <tr>
-                        <th>Patient ID</th>
-                        <th>Risk Score</th>
-                        <th>Risk Level</th>
-                        <th>Avg SBP</th>
-                        <th>IDWG CV</th>
-                        <th>Sessions</th>
-                        <th>Frequency</th>
-                        <th>BP Instability</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody"></tbody>
-            </table>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
-                <div class="pagination" id="pagination"></div>
-                <button class="btn" id="downloadBtn">Download CSV</button>
-            </div>
-        </div>
-    </div>
-
-    <footer>
-        <p>© 2025 Dialysis Patient Survival Analysis | Data-Driven Clinical Decision Support</p>
-        <p style="font-size: 12px; margin-top: 8px;">Data Source: <a href="https://data.mendeley.com/datasets/7kmtsmsgfw/1" target="_blank" style="color: inherit; text-decoration: underline;">Mendeley Data</a> | Citation: Gomez-Pulido, Juan A. (2021), "Dialysis database: sessions with clinical parameters", Mendeley Data, V1, doi: 10.17632/7kmtsmsgfw.1</p>
-    </footer>
-
-    <script src="script.js"></script>
-</body>
-</html>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="topbar"><a class="brand" href="#overview"><span class="brand-mark">D.</span> Dialysis <span class="brand-note">/ Research workspace</span></a><nav aria-label="Main"><a href="#overview">Overview</a><a href="#analysis">Analysis</a><a href="#explorer">Data explorer</a><a href="#methodology">Methodology</a></nav></header>
+<main id="main">
+<section id="overview" class="intro"><div class="eyebrow">HEALTH DATA / EXPLORATORY RESEARCH</div><div class="intro-row"><h1>A closer look at<br>dialysis observations.</h1><span class="status-chip">Exploratory analysis</span></div><p class="lead">Explore recorded sessions, blood pressure variability, and an experimental composite score. A research portfolio for asking better questions of clinical data.</p><p class="source">Source: Gomez-Pulido (2021), <a href="https://doi.org/10.17632/7kmtsmsgfw.1">Dialysis database: sessions with clinical parameters · Mendeley Data V1 ↗</a></p></section>
+<aside class="notice"><strong>Read the data with care.</strong> Profiles use demographic proxy IDs, not verified patient identities. This score has no clinical or survival validation. Source measurement coverage and generation date are unavailable.</aside>
+<div id="loadStatus" role="status" aria-live="polite">Loading Patient_Dashboard_Data.csv…</div><button id="retryBtn" hidden>Retry loading data</button>
+<section class="metrics" id="metricsGrid" aria-label="Filtered cohort summary"></section>
+<section id="analysis"><div class="section-heading"><div><div class="eyebrow">01 / ANALYSIS</div><h2>Patterns in the observations</h2></div><p>All summaries and charts follow the active filters.</p></div><p id="chartStatus" role="status"></p><div class="charts-grid"><article class="panel"><h3>Observed sessions & exploratory score</h3><p>One point per eligible proxy profile; color indicates the exported observation group.</p><div class="chart-wrapper"><canvas id="sessionsChart" role="img" aria-label="Observed session count versus exploratory score; equivalent values in the data explorer"></canvas></div><p id="scatterSummary" class="caption"></p></article><article class="panel"><h3>Score coverage & distribution</h3><p>Legacy score bands, with insufficient evidence shown separately.</p><div class="chart-wrapper"><canvas id="distributionChart" role="img" aria-label="Profile counts by score band; counts also listed below"></canvas></div><p id="distributionSummary" class="caption"></p></article></div></section>
+<section id="explorer" class="panel explorer"><div class="section-heading"><div><div class="eyebrow">02 / DATA EXPLORER</div><h2>Explore the profiles</h2></div><button id="downloadBtn" disabled>Export filtered CSV ↗</button></div><div class="toolbar"><div><label for="searchInput">Proxy profile ID</label><input id="searchInput" type="search" placeholder="Search profiles…"></div><div><label for="riskFilter">Exploratory score band</label><select id="riskFilter"><option value="">All bands</option><option value="high">High (≥30)</option><option value="medium">Medium (15–&lt;30)</option><option value="low">Low (&lt;15)</option><option value="unknown">Insufficient data</option></select></div><div><label for="frequencyFilter">Observed session group</label><select id="frequencyFilter"><option value="">All groups</option><option>Low</option><option>Medium</option><option>High</option></select></div><button id="resetBtn">Reset filters</button></div><p id="matchCount" role="status" aria-live="polite"></p><div class="table-scroll" tabindex="0" role="region" aria-label="Profile data, scroll horizontally for more columns"><table><caption class="sr-only">Filtered proxy profiles ordered by exploratory score, highest first</caption><thead><tr><th scope="col">Proxy profile ID</th><th scope="col">Score / 65</th><th scope="col">Score band</th><th scope="col">Mean SBP · mmHg</th><th scope="col">IDWG CV · %</th><th scope="col">Sessions</th><th scope="col">Session group</th><th scope="col">BP rank / 4</th></tr></thead><tbody id="tableBody"></tbody></table></div><div class="table-footer"><p id="pageInfo"></p><div class="pagination"><button id="prevBtn">Previous</button><button id="nextBtn">Next</button></div></div><p class="caption">Export includes every matching profile across pages. Unavailable scores are blank. CV is displayed as a percentage; export retains numeric precision.</p></section>
+<section id="methodology" class="methodology"><div><div class="eyebrow">03 / METHODOLOGY</div><h2>Understand the limits.<br>Then explore.</h2><p>A descriptive view of an existing aggregate export, not a validated prediction model.</p></div><div><h3>What does the score represent?</h3><p>The legacy formula is 25 × hypotension flag (mean SBP &lt;100 mmHg) + 5 × cohort BP variability rank (1–4) + 10 × IDWG coefficient of variation (capped at 2). Maximum: 65. Bands are &lt;15, 15–&lt;30, and ≥30; these are experimental thresholds.</p><h3>When is evidence insufficient?</h3><p>The browser withholds scores for fewer than two sessions, missing or invalid variability or pressure values, nonpositive IDWG mean, and IDWG means below 0.5 kg where the legacy pipeline substituted zero. Aggregate counts cannot prove measurement completeness. Eligible scores retain exported values; no new clinical calculation is introduced.</p><h3>What do groups and IDs mean?</h3><p>Session groups and BP ranks come directly from the export's cohort quantiles. Session count has no time denominator and cannot establish treatment frequency or compliance. Age, sex, and dry weight form proxy IDs: people can be merged or split. Profile counts must not be interpreted as verified patient counts.</p><h3>Reproducibility & provenance</h3><p>The browser reads Patient_Dashboard_Data.csv. The existing Python pipeline requires the absent source workbook and pandas, NumPy, Matplotlib, Seaborn, and an Excel reader; it has unresolved identity, missing-data, and tied-cohort issues. Source redistribution permissions and deidentification need confirmation before publication. No generation timestamp or source-code repository URL has been supplied.</p></div></section>
+</main><footer><span>Dialysis / Research portfolio</span><span>Descriptive observations. Open questions.</span></footer>
+</body></html>
