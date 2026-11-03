@@ -1,39 +1,36 @@
-# Python
+﻿# Local working notes and agent/editor configuration
+*.md
+*.mds
+.codex/
+.vscode/
+.idea/
+# Environment and credentials
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+*.p12
+credentials*.json
+secrets*.json
+# Dependencies, caches, build outputs
+node_modules/
 .venv/
 venv/
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
 *.egg-info/
 dist/
 build/
-.pytest_cache/
-.ipynb_checkpoints/
-
-# Jupyter Notebooks
+coverage/
+playwright-report/
+test-results/
+# Private source workbooks and local outputs
+*.xlsx
+*.xls
 *.ipynb
-
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
+*.log
 .DS_Store
 Thumbs.db
-
-# Environment variables
-.env
-.env.local
-
-# Data files (source data - keep CSVs exported for dashboard)
-dataset.xlsx
-*.xlsx
-!Patient_Dashboard_Data.csv
-!High_Risk_Patients_Report.csv
-
-# Logs
-*.log
