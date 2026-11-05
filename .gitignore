@@ -1,4 +1,4 @@
-﻿# Local working notes and agent/editor configuration
+# Local working notes and agent/editor configuration
 *.md
 *.mds
 .codex/
@@ -34,3 +34,9 @@ test-results/
 *.log
 .DS_Store
 Thumbs.db
+
+# Local code-quality and skill state
+.desloppify/
+.agents/
+scorecard.png
+
