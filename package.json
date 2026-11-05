@@ -1,0 +1,31 @@
+{
+  "name": "dialysis-research-showcase",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.20.0"
+  },
+  "scripts": {
+    "build": "node build-showcase.js",
+    "dev": "node serve-showcase.js",
+    "test": "node --test tests/*.test.js",
+    "test:coverage": "node --test --experimental-test-coverage tests/*.test.js",
+    "test:browser": "playwright test",
+    "lint": "eslint .",
+    "format": "prettier --write *.js tests/*.js index.html styles.css package.json",
+    "format:check": "prettier --check *.js tests/*.js index.html styles.css package.json"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.1",
+    "eslint": "^10.14.0",
+    "globals": "^17.14.0",
+    "prettier": "^3.9.10"
+  },
+  "overrides": {
+    "minimatch": "^11.0.1"
+  },
+  "dependencies": {
+    "chart.js": "3.9.1"
+  }
+}

@@ -1,22 +1,240 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dialysis | Research workspace</title>
-<link rel="stylesheet" href="styles.css">
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-<script defer src="script.js"></script>
-</head>
-<body>
-<a class="skip-link" href="#main">Skip to content</a>
-<header class="topbar"><a class="brand" href="#overview"><span class="brand-mark">D.</span> Dialysis <span class="brand-note">/ Research workspace</span></a><nav aria-label="Main"><a href="#overview">Overview</a><a href="#analysis">Analysis</a><a href="#explorer">Data explorer</a><a href="#methodology">Methodology</a></nav></header>
-<main id="main">
-<section id="overview" class="intro"><div class="eyebrow">HEALTH DATA / EXPLORATORY RESEARCH</div><div class="intro-row"><h1>A closer look at<br>dialysis observations.</h1><span class="status-chip">Exploratory analysis</span></div><p class="lead">Explore recorded sessions, blood pressure variability, and an experimental composite score. A research portfolio for asking better questions of clinical data.</p><p class="source">Source: Gomez-Pulido (2021), <a href="https://doi.org/10.17632/7kmtsmsgfw.1">Dialysis database: sessions with clinical parameters · Mendeley Data V1 ↗</a></p></section>
-<aside class="notice"><strong>Read the data with care.</strong> Profiles use demographic proxy IDs, not verified patient identities. This score has no clinical or survival validation. Source measurement coverage and generation date are unavailable.</aside>
-<div id="loadStatus" role="status" aria-live="polite">Loading Patient_Dashboard_Data.csv…</div><button id="retryBtn" hidden>Retry loading data</button>
-<section class="metrics" id="metricsGrid" aria-label="Filtered cohort summary"></section>
-<section id="analysis"><div class="section-heading"><div><div class="eyebrow">01 / ANALYSIS</div><h2>Patterns in the observations</h2></div><p>All summaries and charts follow the active filters.</p></div><p id="chartStatus" role="status"></p><div class="charts-grid"><article class="panel"><h3>Observed sessions & exploratory score</h3><p>One point per eligible proxy profile; color indicates the exported observation group.</p><div class="chart-wrapper"><canvas id="sessionsChart" role="img" aria-label="Observed session count versus exploratory score; equivalent values in the data explorer"></canvas></div><p id="scatterSummary" class="caption"></p></article><article class="panel"><h3>Score coverage & distribution</h3><p>Legacy score bands, with insufficient evidence shown separately.</p><div class="chart-wrapper"><canvas id="distributionChart" role="img" aria-label="Profile counts by score band; counts also listed below"></canvas></div><p id="distributionSummary" class="caption"></p></article></div></section>
-<section id="explorer" class="panel explorer"><div class="section-heading"><div><div class="eyebrow">02 / DATA EXPLORER</div><h2>Explore the profiles</h2></div><button id="downloadBtn" disabled>Export filtered CSV ↗</button></div><div class="toolbar"><div><label for="searchInput">Proxy profile ID</label><input id="searchInput" type="search" placeholder="Search profiles…"></div><div><label for="riskFilter">Exploratory score band</label><select id="riskFilter"><option value="">All bands</option><option value="high">High (≥30)</option><option value="medium">Medium (15–&lt;30)</option><option value="low">Low (&lt;15)</option><option value="unknown">Insufficient data</option></select></div><div><label for="frequencyFilter">Observed session group</label><select id="frequencyFilter"><option value="">All groups</option><option>Low</option><option>Medium</option><option>High</option></select></div><button id="resetBtn">Reset filters</button></div><p id="matchCount" role="status" aria-live="polite"></p><div class="table-scroll" tabindex="0" role="region" aria-label="Profile data, scroll horizontally for more columns"><table><caption class="sr-only">Filtered proxy profiles ordered by exploratory score, highest first</caption><thead><tr><th scope="col">Proxy profile ID</th><th scope="col">Score / 65</th><th scope="col">Score band</th><th scope="col">Mean SBP · mmHg</th><th scope="col">IDWG CV · %</th><th scope="col">Sessions</th><th scope="col">Session group</th><th scope="col">BP rank / 4</th></tr></thead><tbody id="tableBody"></tbody></table></div><div class="table-footer"><p id="pageInfo"></p><div class="pagination"><button id="prevBtn">Previous</button><button id="nextBtn">Next</button></div></div><p class="caption">Export includes every matching profile across pages. Unavailable scores are blank. CV is displayed as a percentage; export retains numeric precision.</p></section>
-<section id="methodology" class="methodology"><div><div class="eyebrow">03 / METHODOLOGY</div><h2>Understand the limits.<br>Then explore.</h2><p>A descriptive view of an existing aggregate export, not a validated prediction model.</p></div><div><h3>What does the score represent?</h3><p>The legacy formula is 25 × hypotension flag (mean SBP &lt;100 mmHg) + 5 × cohort BP variability rank (1–4) + 10 × IDWG coefficient of variation (capped at 2). Maximum: 65. Bands are &lt;15, 15–&lt;30, and ≥30; these are experimental thresholds.</p><h3>When is evidence insufficient?</h3><p>The browser withholds scores for fewer than two sessions, missing or invalid variability or pressure values, nonpositive IDWG mean, and IDWG means below 0.5 kg where the legacy pipeline substituted zero. Aggregate counts cannot prove measurement completeness. Eligible scores retain exported values; no new clinical calculation is introduced.</p><h3>What do groups and IDs mean?</h3><p>Session groups and BP ranks come directly from the export's cohort quantiles. Session count has no time denominator and cannot establish treatment frequency or compliance. Age, sex, and dry weight form proxy IDs: people can be merged or split. Profile counts must not be interpreted as verified patient counts.</p><h3>Reproducibility & provenance</h3><p>The browser reads Patient_Dashboard_Data.csv. The existing Python pipeline requires the absent source workbook and pandas, NumPy, Matplotlib, Seaborn, and an Excel reader; it has unresolved identity, missing-data, and tied-cohort issues. Source redistribution permissions and deidentification need confirmation before publication. No generation timestamp or source-code repository URL has been supplied.</p></div></section>
-</main><footer><span>Dialysis / Research portfolio</span><span>Descriptive observations. Open questions.</span></footer>
-</body></html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="An exploratory data science case study on dialysis observations, measurement quality, and the limits of a composite score."
+    />
+    <title>Dialysis observations | A data science case study</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="chart.min.js"></script>
+    <script type="module">
+      import { createShowcase } from "./script.js";
+      createShowcase({
+        document,
+        fetchData: window.fetch.bind(window),
+        ChartClass: window.Chart,
+      }).load();
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar">
+      <a class="brand" href="#overview"
+        ><span class="brand-mark">D.</span> Dialysis
+        <span class="brand-note">/ Data science case study</span></a
+      >
+      <nav aria-label="Main">
+        <a href="#question">The question</a><a href="#findings">Findings</a
+        ><a href="#analysis">Analysis</a><a href="#methodology">Methodology</a>
+      </nav>
+    </header>
+    <main id="main" tabindex="-1">
+      <section id="overview" class="intro">
+        <div class="eyebrow">RESEARCH NOTE / 01 — DIALYSIS DATA</div>
+        <div class="intro-row">
+          <h1>
+            Before interpreting<br />the score,<br /><em
+              >examine the evidence.</em
+            >
+          </h1>
+          <aside class="study-index" aria-label="Study scope">
+            <span class="eyebrow">IN THIS STUDY</span>
+            <dl>
+              <dt>Material</dt>
+              <dd>Exported session summaries</dd>
+              <dt>Approach</dt>
+              <dd>Descriptive analysis &amp; data audit</dd>
+              <dt>Scope</dt>
+              <dd>Cohort counts; no individual records</dd>
+            </dl>
+            <a href="#findings"
+              >Read the findings <span aria-hidden="true">↘</span></a
+            >
+          </aside>
+        </div>
+        <p class="lead">
+          An audit of recorded sessions, blood pressure variability, and the
+          limits of an experimental composite score. A central finding is also a
+          methodological one: missing evidence changes the interpretation.
+        </p>
+        <p class="source">
+          Source: Gomez-Pulido (2021),
+          <a href="https://doi.org/10.17632/7kmtsmsgfw.1"
+            >Dialysis database: sessions with clinical parameters · Mendeley
+            Data V1</a
+          >
+        </p>
+      </section>
+      <aside class="notice">
+        <strong>Exploratory, with important limits.</strong> This study uses
+        legacy demographic proxy groups rather than verified patient identities.
+        Counts describe those groups. The score has no clinical or survival
+        validation.
+      </aside>
+      <section id="question" class="research-question">
+        <div>
+          <div class="eyebrow">THE QUESTION</div>
+          <h2>How much evidence<br />supports a score?</h2>
+        </div>
+        <div>
+          <p>
+            How much observation data supports each profile, how does a legacy
+            score distribute across the cohort, and which results lack enough
+            evidence to interpret?
+          </p>
+          <p>
+            The project combines an audit of exported measurements with
+            descriptive analysis. It surfaces data-quality limits alongside the
+            results, before drawing conclusions from a numerical score.
+          </p>
+        </div>
+      </section>
+      <div id="loadStatus" role="status" aria-live="polite">
+        Loading cohort findings…
+      </div>
+      <button id="retryBtn" hidden>Retry loading findings</button>
+      <noscript
+        ><p class="notice">
+          Enable JavaScript to load the cohort counts and findings. The study
+          question, methods, and limitations are available below.
+        </p></noscript
+      >
+      <section
+        class="metrics"
+        id="metricsGrid"
+        aria-label="Study cohort summary"
+      ></section>
+      <section id="findings" class="findings">
+        <div class="section-heading">
+          <div>
+            <div class="eyebrow">01 / FINDINGS</div>
+            <h2>Three findings from the export</h2>
+          </div>
+          <p>
+            Descriptive findings from the existing export, with denominators
+            made explicit.
+          </p>
+        </div>
+        <div id="findingsGrid" class="findings-grid"></div>
+      </section>
+      <section id="analysis">
+        <div class="section-heading">
+          <div>
+            <div class="eyebrow">02 / COHORT ANALYSIS</div>
+            <h2>Observation coverage &amp; score distribution</h2>
+          </div>
+          <p>Cohort counts only. Exact chart values are repeated in text.</p>
+        </div>
+        <p id="chartStatus" role="status"></p>
+        <div class="charts-grid">
+          <article class="panel">
+            <div class="eyebrow">FIG. 01 / OBSERVATION COVERAGE</div>
+            <h3>Recorded sessions per proxy profile</h3>
+            <p>
+              Profiles grouped by recorded session count. These fixed ranges
+              describe observation coverage; they are not treatment-frequency
+              categories.
+            </p>
+            <div class="chart-wrapper">
+              <canvas
+                id="sessionsChart"
+                role="img"
+                aria-label="Profile counts by recorded session range"
+                aria-describedby="sessionSummary"
+              ></canvas>
+            </div>
+            <p id="sessionSummary" class="caption"></p>
+          </article>
+          <article class="panel">
+            <div class="eyebrow">FIG. 02 / SCORE SCREENING</div>
+            <h3>Retained bands and withheld scores</h3>
+            <p>
+              The legacy score bands are shown alongside withheld scores. The
+              denominator includes every proxy profile.
+            </p>
+            <div class="chart-wrapper">
+              <canvas
+                id="distributionChart"
+                role="img"
+                aria-label="Profile counts by legacy score band and withheld evidence"
+                aria-describedby="distributionSummary"
+              ></canvas>
+            </div>
+            <p id="distributionSummary" class="caption"></p>
+          </article>
+        </div>
+      </section>
+      <section id="methodology" class="methodology">
+        <div>
+          <div class="eyebrow">03 / METHODOLOGY</div>
+          <h2>Methods,<br />assumptions &amp; limits.</h2>
+          <p>
+            A descriptive case study, with data preparation and uncertainty
+            treated as part of the result.
+          </p>
+        </div>
+        <div>
+          <h3>From observations to a cohort summary</h3>
+          <p>
+            The original Python analysis grouped session observations and
+            exported profile-level summaries. A separate build step now checks
+            those summaries and produces only cohort counts for this website. It
+            rejects blank or duplicate profile IDs. No profile records or
+            individual-point plots are needed to present these results.
+          </p>
+          <h3>The exploratory score</h3>
+          <p>
+            The legacy formula is 25 × an indicator for mean systolic blood
+            pressure below 100 mmHg + 5 × cohort blood pressure variability rank
+            (1–4) + 10 × interdialytic weight gain coefficient of variation
+            (capped at 2). The maximum is 65. Bands are below 15, 15 to below
+            30, and 30 or above. These hand-chosen weights and thresholds are
+            not validated clinical predictions.
+          </p>
+          <h3>Why some scores are withheld</h3>
+          <p>
+            The build withholds numerical scores for fewer than two sessions,
+            missing or invalid pressure or variability values, and mean
+            interdialytic weight gain below 0.5 kg, where the legacy pipeline
+            substituted zero variability. It also checks that the exported
+            variation ratio and score agree with the documented calculations,
+            allowing an absolute tolerance of 0.000000001 for serialization.
+            Accepted scores retain their exported values. Measurement
+            completeness cannot be established from these summaries alone.
+          </p>
+          <h3>What this study cannot establish</h3>
+          <p>
+            Age, sex, and dry weight formed the original proxy identities;
+            different people may have been merged, and one person may have been
+            split. Source measurement counts and follow-up time are unavailable.
+            Recorded sessions cannot establish attendance or treatment
+            frequency. There is no survival outcome or validated clinical model.
+            Cohort summaries reduce detail in the website; they are not a formal
+            guarantee of anonymization.
+          </p>
+          <h3>Reproducibility and next steps</h3>
+          <p>
+            The website loads a build-generated cohort summary. The original
+            workbook is absent; the Python pipeline has unresolved identity,
+            missing-measurement, and tied-cohort issues. Source redistribution
+            permissions still need confirmation. The next research step is to
+            establish stable source identity and per-measurement coverage before
+            revisiting the score or attempting outcome modeling.
+          </p>
+          <p>
+            <a href="https://github.com/arianrhod-lala/dialysis_dashboard"
+              >View the project source and engineering work on GitHub</a
+            >. Source generation date is unavailable.
+          </p>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <span>Dialysis / Data science portfolio</span
+      ><span>Descriptive research · No clinical validation</span>
+    </footer>
+  </body>
+</html>

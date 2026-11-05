@@ -29,11 +29,20 @@ Thumbs.db
 .env
 .env.local
 
-# Data files (source data - keep CSVs exported for dashboard)
+# Local analysis inputs. Publish only the built dist/ showcase, never this root.
 dataset.xlsx
 *.xlsx
-!Patient_Dashboard_Data.csv
-!High_Risk_Patients_Report.csv
 
 # Logs
 *.log
+
+# Local code-quality scan state
+.desloppify/
+.agents/
+node_modules/
+coverage/
+test-results/
+playwright-report/
+
+# Generated local quality scorecard
+scorecard.png
