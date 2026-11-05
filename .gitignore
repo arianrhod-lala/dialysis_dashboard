@@ -1,48 +1,42 @@
-# Python
+# Local working notes and agent/editor configuration
+*.md
+*.mds
+.codex/
+.vscode/
+.idea/
+# Environment and credentials
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+*.p12
+credentials*.json
+secrets*.json
+# Dependencies, caches, build outputs
+node_modules/
 .venv/
 venv/
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
 *.egg-info/
 dist/
 build/
-.pytest_cache/
-.ipynb_checkpoints/
-
-# Jupyter Notebooks
+coverage/
+playwright-report/
+test-results/
+# Private source workbooks and local outputs
+*.xlsx
+*.xls
 *.ipynb
-
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
+*.log
 .DS_Store
 Thumbs.db
 
-# Environment variables
-.env
-.env.local
-
-# Local analysis inputs. Publish only the built dist/ showcase, never this root.
-dataset.xlsx
-*.xlsx
-
-# Logs
-*.log
-
-# Local code-quality scan state
+# Local code-quality and skill state
 .desloppify/
 .agents/
-node_modules/
-coverage/
-test-results/
-playwright-report/
-
-# Generated local quality scorecard
 scorecard.png
+
