@@ -3,6 +3,7 @@ export const PUBLIC_ASSETS = Object.freeze([
   "index.html",
   "styles.css",
   "script.js",
+  "motion.js",
   "renderer.js",
   "summary.js",
   "chart.min.js",
