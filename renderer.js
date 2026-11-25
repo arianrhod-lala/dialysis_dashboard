@@ -49,26 +49,22 @@ export function createRenderer({ document, ChartClass }) {
     );
     const findings = [
       [
-        "Some profiles cannot support a score.",
+        "Some profiles cannot support a score",
         `${format(data.withheldProfiles)} of ${format(data.totalProfiles)} profiles (${percent(data.withheldProfiles, data.totalProfiles)}) do not support a numerical score under the aggregate screen. Keeping them visible as a separate count avoids presenting missing evidence as a low score.`,
       ],
       [
-        "Observation coverage is uneven.",
+        "Observation coverage is uneven",
         `${format(data.profileCountsBySessionRange[0])} profiles have only one recorded session. A single observation cannot establish within-profile variability, and session totals alone cannot establish attendance or treatment frequency.`,
       ],
       [
-        "A high band does not predict an outcome.",
+        "A high band does not predict an outcome",
         `${format(data.scoreBands.high)} of ${format(data.eligibleProfiles)} retained scores (${percent(data.scoreBands.high, data.eligibleProfiles)}) fall in the legacy high band (≥30). This describes a hand-weighted formula, not a probability of a clinical event or a survival outcome.`,
       ],
     ];
     $("findingsGrid").replaceChildren(
-      ...findings.map(([title, text], i) => {
+      ...findings.map(([title, text]) => {
         const node = element("article", "", "finding");
-        node.append(
-          element("div", `0${i + 1}`, "eyebrow"),
-          element("h3", title),
-          element("p", text),
-        );
+        node.append(element("h3", title), element("p", text));
         return node;
       }),
     );
@@ -103,14 +99,15 @@ export function createRenderer({ document, ChartClass }) {
         sessionLabels,
         data.profileCountsBySessionRange,
         "Recorded sessions per proxy profile",
-        ["#285449", "#285449", "#285449", "#285449"],
+        ["#316557", "#316557", "#316557", "#316557"],
       );
       makeChart(
         "distributionChart",
         ["Low", "Medium", "High", "Withheld"],
         ["low", "medium", "high", "unknown"].map((key) => data.scoreBands[key]),
         "Legacy score band / evidence",
-        ["#285449", "#9a752e", "#9b4938", "#8b8b7c"],
+        ["#87928e", "#87928e", "#87928e", "#956c32"],
+        true,
       );
       $("chartStatus").textContent = "";
     } catch {
@@ -118,28 +115,54 @@ export function createRenderer({ document, ChartClass }) {
         "Charts are unavailable. All chart counts and findings are available in the text on this page.";
     }
   }
-  function makeChart(id, labels, counts, x, colors) {
+  function makeChart(
+    id,
+    labels,
+    counts,
+    categoryTitle,
+    colors,
+    horizontal = false,
+  ) {
+    const font = { family: '"Segoe UI", sans-serif', size: 12 };
+    const categoryAxis = {
+      title: {
+        display: !horizontal,
+        text: categoryTitle,
+        color: "#52605b",
+        font,
+      },
+      ticks: { color: "#52605b", font },
+      grid: { display: false, drawBorder: false },
+    };
+    const countAxis = {
+      beginAtZero: true,
+      ticks: { precision: 0, color: "#52605b", font },
+      title: { display: true, text: "Proxy profiles", color: "#52605b", font },
+      grid: { color: "rgba(30, 47, 40, 0.09)", drawBorder: false },
+    };
     chartInstances[id] = new ChartClass($(id), {
       type: "bar",
       data: {
         labels,
         datasets: [
-          { label: "Proxy profiles", data: counts, backgroundColor: colors },
+          {
+            label: "Proxy profiles",
+            data: counts,
+            backgroundColor: colors,
+            maxBarThickness: horizontal ? 24 : 64,
+            borderRadius: 2,
+          },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         animation: false,
+        indexAxis: horizontal ? "y" : "x",
         plugins: { legend: { display: false } },
         scales: {
-          x: { title: { display: true, text: x }, grid: { display: false } },
-          y: {
-            beginAtZero: true,
-            ticks: { precision: 0 },
-            title: { display: true, text: "Proxy profiles" },
-            grid: { color: "#deded2" },
-          },
+          x: horizontal ? countAxis : categoryAxis,
+          y: horizontal ? categoryAxis : countAxis,
         },
       },
     });

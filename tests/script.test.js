@@ -88,11 +88,11 @@ async function browserChecks(withCharts) {
   assert.match(get("loadStatus").textContent, /summary loaded/);
   assert.equal(get("findingsGrid").children.length, 3);
   assert.match(
-    get("findingsGrid").children[0].children[2].textContent,
+    get("findingsGrid").children[0].children[1].textContent,
     /2 of 8 profiles \(25.0%\)/,
   );
   assert.match(
-    get("findingsGrid").children[2].children[2].textContent,
+    get("findingsGrid").children[2].children[1].textContent,
     /1 of 6 retained scores \(16.7%\)/,
   );
   assert.match(

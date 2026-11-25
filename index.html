@@ -11,6 +11,10 @@
     <link rel="stylesheet" href="styles.css" />
     <script defer src="chart.min.js"></script>
     <script type="module">
+      import { initMotion } from "./motion.js";
+      initMotion({ document, window });
+    </script>
+    <script type="module">
       import { createShowcase } from "./script.js";
       createShowcase({
         document,
@@ -23,8 +27,7 @@
     <a class="skip-link" href="#main">Skip to content</a>
     <header class="topbar">
       <a class="brand" href="#overview"
-        ><span class="brand-mark">D.</span> Dialysis
-        <span class="brand-note">/ Data science case study</span></a
+        >Dialysis <span class="brand-note">/ Data science case study</span></a
       >
       <nav aria-label="Main">
         <a href="#question">The question</a><a href="#findings">Findings</a
@@ -33,15 +36,25 @@
     </header>
     <main id="main" tabindex="-1">
       <section id="overview" class="intro">
-        <div class="eyebrow">RESEARCH NOTE / 01 — DIALYSIS DATA</div>
         <div class="intro-row">
-          <h1>
-            Before interpreting<br />the score,<br /><em
-              >examine the evidence.</em
-            >
-          </h1>
+          <div class="intro-summary">
+            <h1>Dialysis observations<br />and score evidence</h1>
+            <p class="lead">
+              An audit of recorded sessions, blood pressure variability, and the
+              limits of an experimental composite score. A central finding is
+              also a methodological one: missing evidence changes the
+              interpretation.
+            </p>
+            <p class="source">
+              Source: Gomez-Pulido (2021),
+              <a href="https://doi.org/10.17632/7kmtsmsgfw.1"
+                >Dialysis database: sessions with clinical parameters · Mendeley
+                Data V1</a
+              >
+            </p>
+          </div>
           <aside class="study-index" aria-label="Study scope">
-            <span class="eyebrow">IN THIS STUDY</span>
+            <h2>Study scope</h2>
             <dl>
               <dt>Material</dt>
               <dd>Exported session summaries</dd>
@@ -50,23 +63,9 @@
               <dt>Scope</dt>
               <dd>Cohort counts; no individual records</dd>
             </dl>
-            <a href="#findings"
-              >Read the findings <span aria-hidden="true">↘</span></a
-            >
+            <a href="#findings">Read the findings</a>
           </aside>
         </div>
-        <p class="lead">
-          An audit of recorded sessions, blood pressure variability, and the
-          limits of an experimental composite score. A central finding is also a
-          methodological one: missing evidence changes the interpretation.
-        </p>
-        <p class="source">
-          Source: Gomez-Pulido (2021),
-          <a href="https://doi.org/10.17632/7kmtsmsgfw.1"
-            >Dialysis database: sessions with clinical parameters · Mendeley
-            Data V1</a
-          >
-        </p>
       </section>
       <aside class="notice">
         <strong>Exploratory, with important limits.</strong> This study uses
@@ -74,23 +73,39 @@
         Counts describe those groups. The score has no clinical or survival
         validation.
       </aside>
-      <section id="question" class="research-question">
-        <div>
-          <div class="eyebrow">THE QUESTION</div>
-          <h2>How much evidence<br />supports a score?</h2>
-        </div>
-        <div>
-          <p>
-            How much observation data supports each profile, how does a legacy
-            score distribute across the cohort, and which results lack enough
-            evidence to interpret?
-          </p>
+      <section
+        id="question"
+        class="research-question"
+        aria-labelledby="question-title"
+      >
+        <div class="question-intro">
+          <h2 id="question-title">How much evidence supports a score?</h2>
           <p>
             The project combines an audit of exported measurements with
             descriptive analysis. It surfaces data-quality limits alongside the
             results, before drawing conclusions from a numerical score.
           </p>
         </div>
+        <ul class="question-topics" aria-label="Explore the research question">
+          <li>
+            <a href="#analysis">
+              <h3>Observation coverage</h3>
+              <p>How much observation data supports each profile?</p>
+            </a>
+          </li>
+          <li>
+            <a href="#score-distribution">
+              <h3>Score distribution</h3>
+              <p>How does the legacy score distribute across the cohort?</p>
+            </a>
+          </li>
+          <li>
+            <a href="#methodology">
+              <h3>Evidence limits</h3>
+              <p>Which results lack enough evidence to interpret?</p>
+            </a>
+          </li>
+        </ul>
       </section>
       <div id="loadStatus" role="status" aria-live="polite">
         Loading cohort findings…
@@ -110,7 +125,6 @@
       <section id="findings" class="findings">
         <div class="section-heading">
           <div>
-            <div class="eyebrow">01 / FINDINGS</div>
             <h2>Three findings from the export</h2>
           </div>
           <p>
@@ -123,7 +137,6 @@
       <section id="analysis">
         <div class="section-heading">
           <div>
-            <div class="eyebrow">02 / COHORT ANALYSIS</div>
             <h2>Observation coverage &amp; score distribution</h2>
           </div>
           <p>Cohort counts only. Exact chart values are repeated in text.</p>
@@ -131,7 +144,6 @@
         <p id="chartStatus" role="status"></p>
         <div class="charts-grid">
           <article class="panel">
-            <div class="eyebrow">FIG. 01 / OBSERVATION COVERAGE</div>
             <h3>Recorded sessions per proxy profile</h3>
             <p>
               Profiles grouped by recorded session count. These fixed ranges
@@ -148,8 +160,7 @@
             </div>
             <p id="sessionSummary" class="caption"></p>
           </article>
-          <article class="panel">
-            <div class="eyebrow">FIG. 02 / SCORE SCREENING</div>
+          <article id="score-distribution" class="panel panel-secondary">
             <h3>Retained bands and withheld scores</h3>
             <p>
               The legacy score bands are shown alongside withheld scores. The
@@ -169,8 +180,7 @@
       </section>
       <section id="methodology" class="methodology">
         <div>
-          <div class="eyebrow">03 / METHODOLOGY</div>
-          <h2>Methods,<br />assumptions &amp; limits.</h2>
+          <h2>Methods, assumptions &amp; limits</h2>
           <p>
             A descriptive case study, with data preparation and uncertainty
             treated as part of the result.
